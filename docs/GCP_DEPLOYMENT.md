@@ -4,9 +4,11 @@ This setup uses GitHub Actions, keyless Workload Identity Federation, Artifact R
 
 ## 1. Create or select a project
 
-Open Google Cloud Shell, then replace `YOUR_PROJECT_ID` and run:
+Open Google Cloud Shell, clone the repository, then replace `YOUR_PROJECT_ID` and run:
 
 ```bash
+git clone https://github.com/JohnSu0713/one-day.git
+cd one-day
 export PROJECT_ID="YOUR_PROJECT_ID"
 export REGION="us-west1"
 export REPOSITORY="JohnSu0713/one-day"
@@ -128,4 +130,3 @@ Open the repository's **Actions → CI → Run workflow**, or push to `main`. Th
 5. call `/api/health` and fail if production is unhealthy.
 
 The Cloud Run configuration uses 1 vCPU, 512 MiB, zero minimum instances, a maximum of one instance, and request-time CPU allocation. This minimizes idle cost. Configure a small Cloud Billing budget alert as an additional guardrail; budget alerts notify you but do not hard-stop spending.
-
