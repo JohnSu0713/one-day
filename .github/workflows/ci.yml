@@ -4,10 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,3 +22,57 @@ jobs:
       - run: npm ci
       - run: npm run check
 
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Configure Artifact Registry
+        run: gcloud auth configure-docker us-west1-docker.pkg.dev --quiet
+      - name: Build and push immutable image
+        env:
+          IMAGE: us-west1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/one-day/one-day:${{ github.sha }}
+        run: |
+          docker build --tag "$IMAGE" .
+          docker push "$IMAGE"
+      - id: deploy
+        name: Deploy to Cloud Run
+        env:
+          IMAGE: us-west1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/one-day/one-day:${{ github.sha }}
+        shell: bash
+        run: |
+          gcloud run deploy one-day \
+            --project="${{ vars.GCP_PROJECT_ID }}" \
+            --region=us-west1 \
+            --image="$IMAGE" \
+            --service-account="one-day-runtime@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --allow-unauthenticated \
+            --min=0 \
+            --max=1 \
+            --cpu=1 \
+            --memory=512Mi \
+            --concurrency=40 \
+            --set-env-vars=PLAID_ENV=sandbox \
+            --set-secrets=PLAID_CLIENT_ID=one-day-plaid-client-id:latest,PLAID_SECRET=one-day-plaid-secret:latest \
+            --quiet
+          URL="$(gcloud run services describe one-day --project="${{ vars.GCP_PROJECT_ID }}" --region=us-west1 --format='value(status.url)')"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+      - name: Verify production health
+        shell: bash
+        run: curl --fail --retry 5 --retry-delay 5 "${{ steps.deploy.outputs.url }}/api/health"
+      - name: Publish deployment summary
+        run: echo "### One Day deployed to ${{ steps.deploy.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

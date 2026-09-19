@@ -7,9 +7,14 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Plan financial independence around the life and place you want.",
     start_url: "/",
     display: "standalone",
+    orientation: "portrait-primary",
+    scope: "/",
     background_color: "#f4f1e8",
     theme_color: "#18382b",
-    icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }],
+    categories: ["finance", "lifestyle", "productivity"],
+    icons: [
+      { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" },
+    ],
   };
 }
-

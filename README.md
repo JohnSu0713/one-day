@@ -45,3 +45,14 @@ In sandbox, Plaid's test institution credentials can be used. The current MVP ex
 
 City costs are editable planning estimates, not financial advice or live cost-of-living quotes.
 
+## Deploy to Google Cloud Run
+
+Cloud Run is recommended because One Day includes server-side Plaid routes. From the repository root:
+
+```bash
+gcloud run deploy one-day --source . --region us-west1 --allow-unauthenticated
+```
+
+The included multi-stage Dockerfile runs the app as a non-root user on Cloud Run's `PORT=8080`. Store Plaid credentials in Secret Manager rather than source control or plain environment variables.
+
+For the one-time, keyless GitHub Actions setup, follow [docs/GCP_DEPLOYMENT.md](docs/GCP_DEPLOYMENT.md).
